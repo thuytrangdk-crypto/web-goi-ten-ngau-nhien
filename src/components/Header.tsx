@@ -11,6 +11,7 @@ import {
   Settings,
   History,
   ChevronDown,
+  Database,
 } from 'lucide-react';
 import { ClassRoom } from '../types';
 
@@ -25,6 +26,7 @@ interface HeaderProps {
   onOpenClassManager: () => void;
   onOpenHistory: () => void;
   onOpenSettings: () => void;
+  onOpenSupabase: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -38,6 +40,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenClassManager,
   onOpenHistory,
   onOpenSettings,
+  onOpenSupabase,
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showClassDropdown, setShowClassDropdown] = useState(false);
@@ -147,6 +150,16 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Users className="w-4 h-4" />
             <span>Lớp học</span>
+          </button>
+
+          {/* Supabase Cloud Sync */}
+          <button
+            onClick={onOpenSupabase}
+            className="p-2 sm:px-3 sm:py-2 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-800 transition-colors inline-flex items-center gap-1.5"
+            title="Đồng bộ cơ sở dữ liệu Supabase"
+          >
+            <Database className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <span className="hidden sm:inline">Supabase</span>
           </button>
 
           {/* Âm thanh */}

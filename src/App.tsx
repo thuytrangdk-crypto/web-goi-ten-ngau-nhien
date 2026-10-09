@@ -26,6 +26,12 @@ import { WinnerModal } from './components/WinnerModal';
 import { ClassManagementModal } from './components/ClassManagementModal';
 import { HistoryModal } from './components/HistoryModal';
 import { SettingsModal } from './components/SettingsModal';
+import { SupabaseModal } from './components/SupabaseModal';
+import {
+  recordCallOnSupabase,
+  updateCalledStudentsOnSupabase,
+  deleteClassOnSupabase,
+} from './utils/supabase';
 import { Users, PlusCircle } from 'lucide-react';
 
 export default function App() {
@@ -46,6 +52,7 @@ export default function App() {
   const [isClassManagerOpen, setIsClassManagerOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
   const [recentWinner, setRecentWinner] = useState<{
     student: Student;
     orderNumber: number;
@@ -113,6 +120,9 @@ export default function App() {
             ? cls.calledStudentIds
             : [...cls.calledStudentIds, student.id];
 
+          // Đồng bộ ngầm lên Supabase nếu có kết nối
+          recordCallOnSupabase(cls.id, newRecord, updatedCalled);
+
           return {
             ...cls,
             calledStudentIds: updatedCalled,
@@ -132,6 +142,7 @@ export default function App() {
   // 5. Đặt lại vòng gọi mới (cho phép gọi lại tất cả học sinh mà không xóa lịch sử)
   const handleResetRound = useCallback(() => {
     if (!currentClass) return;
+    updateCalledStudentsOnSupabase(currentClass.id, []);
     setClasses((prev) =>
       prev.map((cls) => {
         if (cls.id !== currentClass.id) return cls;
@@ -215,6 +226,7 @@ export default function App() {
 
   const handleDeleteClass = (classId: string) => {
     if (classes.length <= 1) return;
+    deleteClassOnSupabase(classId);
     const remaining = classes.filter((c) => c.id !== classId);
     setClasses(remaining);
     if (activeClassId === classId) {
@@ -296,6 +308,7 @@ export default function App() {
         onOpenClassManager={() => setIsClassManagerOpen(true)}
         onOpenHistory={() => setIsHistoryOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenSupabase={() => setIsSupabaseModalOpen(true)}
       />
 
       {/* 2. Thanh chuyển chế độ 3 Tab */}
@@ -419,6 +432,19 @@ export default function App() {
         onClose={() => setIsSettingsOpen(false)}
         onUpdateSettings={handleUpdateSettings}
         onRestoreBackup={handleRestoreBackup}
+      />
+
+      {/* 9. Modal Kết nối Supabase */}
+      <SupabaseModal
+        isOpen={isSupabaseModalOpen}
+        classes={classes}
+        onClose={() => setIsSupabaseModalOpen(false)}
+        onClassesUpdated={(updatedClasses) => {
+          setClasses(updatedClasses);
+          if (updatedClasses.length > 0) {
+            setActiveClassId(updatedClasses[0].id);
+          }
+        }}
       />
     </div>
   );
