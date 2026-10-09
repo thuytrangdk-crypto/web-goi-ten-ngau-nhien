@@ -1,0 +1,7 @@
+{
+  "name": "Gọi Tên Ngẫu Nhiên",
+  "description": "Ứng dụng gọi tên học sinh ngẫu nhiên hiện đại, công bằng dành cho giáo viên với 3 chế độ: Vòng quay, Máy chọn tên và Hộp quà bí mật.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
