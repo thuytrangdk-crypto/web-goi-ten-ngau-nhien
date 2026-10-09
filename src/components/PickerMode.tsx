@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Square, AlertCircle, RefreshCw, Zap } from 'lucide-react';
+import { Play, AlertCircle, RefreshCw, Zap, Sparkles } from 'lucide-react';
 import { Student } from '../types';
 import { secureRandomInt } from '../utils/random';
 import { soundManager } from '../utils/audio';
@@ -27,14 +27,15 @@ export const PickerMode: React.FC<PickerModeProps> = ({
   const [isRunning, setIsRunning] = useState(false);
   const [isDecelerating, setIsDecelerating] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const timerRef = useRef<number | null>(null);
 
-  // Dọn dẹp interval
+  const stepTimerRef = useRef<number | null>(null);
+  const autoStopTimeoutRef = useRef<number | null>(null);
+
+  // Dọn dẹp timers khi unmount
   useEffect(() => {
     return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
+      if (stepTimerRef.current) clearTimeout(stepTimerRef.current);
+      if (autoStopTimeoutRef.current) clearTimeout(autoStopTimeoutRef.current);
     };
   }, []);
 
@@ -45,36 +46,21 @@ export const PickerMode: React.FC<PickerModeProps> = ({
     }
   }, [count, currentIndex]);
 
-  // Bắt đầu nhảy tên nhanh
-  const handleStart = () => {
-    if (isRunning || isDecelerating || count === 0) return;
-    setIsRunning(true);
-
-    const stepSpeed = reducedMotion ? 120 : 60; // ms
-    const runStep = () => {
-      setCurrentIndex((prev) => {
-        const next = (prev + 1) % count;
-        soundManager.playTick(1.2);
-        return next;
-      });
-      timerRef.current = window.setTimeout(runStep, stepSpeed);
-    };
-
-    runStep();
-  };
-
-  // Bấm dừng: Chọn trước kết quả công bằng, giảm tốc và dừng chuẩn xác
-  const handleStop = () => {
-    if (!isRunning || isDecelerating || count === 0) return;
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
+  // Hàm kích hoạt giảm tốc và chọn học sinh
+  const triggerDecelerationAndSelect = () => {
+    if (stepTimerRef.current) {
+      clearTimeout(stepTimerRef.current);
+      stepTimerRef.current = null;
+    }
+    if (autoStopTimeoutRef.current) {
+      clearTimeout(autoStopTimeoutRef.current);
+      autoStopTimeoutRef.current = null;
     }
 
     setIsRunning(false);
     setIsDecelerating(true);
 
-    // 1. Chọn trước học sinh chiến thắng bằng secureRandomInt
+    // 1. Chọn trước học sinh chiến thắng bằng secureRandomInt (công bằng tuyệt đối)
     const winnerIdx = secureRandomInt(count);
     const targetStudent = displayStudents[winnerIdx];
 
@@ -86,7 +72,7 @@ export const PickerMode: React.FC<PickerModeProps> = ({
       return;
     }
 
-    // Tạo các bước giảm tốc (delays tăng dần)
+    // Tạo các bước giảm tốc mượt mà (delays tăng dần)
     const stepsCount = 10;
     const delays = [80, 110, 150, 200, 260, 340, 440, 560, 700, 850];
     let step = 0;
@@ -96,7 +82,7 @@ export const PickerMode: React.FC<PickerModeProps> = ({
       if (step < stepsCount) {
         setCurrentIndex((prev) => (prev + 1) % count);
         soundManager.playTick(1.0 - (step / stepsCount) * 0.4);
-        timerRef.current = window.setTimeout(decelerateStep, delays[step]);
+        stepTimerRef.current = window.setTimeout(decelerateStep, delays[step]);
       } else {
         // Bước cuối cùng: dừng chính xác vào vị trí của winner
         setCurrentIndex(winnerIdx);
@@ -105,7 +91,38 @@ export const PickerMode: React.FC<PickerModeProps> = ({
       }
     };
 
-    timerRef.current = window.setTimeout(decelerateStep, delays[0]);
+    stepTimerRef.current = window.setTimeout(decelerateStep, delays[0]);
+  };
+
+  // Bắt đầu: Xáo trộn và TỰ ĐỘNG dừng sau 2.5 giây mà giáo viên không cần bấm dừng
+  const handleStart = () => {
+    if (isRunning || isDecelerating || count === 0) return;
+    setIsRunning(true);
+
+    const stepSpeed = reducedMotion ? 100 : 55; // ms giữa mỗi lần đổi tên
+    const runStep = () => {
+      setCurrentIndex((prev) => {
+        const next = (prev + 1) % count;
+        soundManager.playTick(1.2);
+        return next;
+      });
+      stepTimerRef.current = window.setTimeout(runStep, stepSpeed);
+    };
+
+    runStep();
+
+    // Tự động tìm và dừng sau 2.5 giây
+    const shuffleDuration = reducedMotion ? 1200 : 2500; // ms
+    autoStopTimeoutRef.current = window.setTimeout(() => {
+      triggerDecelerationAndSelect();
+    }, shuffleDuration);
+  };
+
+  // Nếu người dùng muốn dừng ngay lập tức trước khi hết 2.5s
+  const handleStopNow = () => {
+    if (isRunning && !isDecelerating) {
+      triggerDecelerationAndSelect();
+    }
   };
 
   if (count === 0 && students.length > 0) {
@@ -151,8 +168,18 @@ export const PickerMode: React.FC<PickerModeProps> = ({
                 : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
             }`}
           >
-            <Zap className="w-3.5 h-3.5" />
-            {isRunning ? 'Đang xáo trộn tên...' : isDecelerating ? 'Đang giảm tốc...' : 'Sẵn sàng chọn'}
+            {isRunning ? (
+              <Zap className="w-3.5 h-3.5 animate-spin" />
+            ) : isDecelerating ? (
+              <Sparkles className="w-3.5 h-3.5" />
+            ) : (
+              <Play className="w-3.5 h-3.5" />
+            )}
+            {isRunning
+              ? 'Đang xáo trộn tên (Tự động chọn)...'
+              : isDecelerating
+              ? 'Đang giảm tốc...'
+              : 'Sẵn sàng chọn'}
           </span>
         </div>
 
@@ -173,7 +200,7 @@ export const PickerMode: React.FC<PickerModeProps> = ({
         </div>
       </div>
 
-      {/* Bộ nút điều khiển BẮT ĐẦU / DỪNG LẠI */}
+      {/* Nút bấm duy nhất: BẮT ĐẦU -> Tự động xáo trộn và tự động dừng */}
       <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
         {!isRunning && !isDecelerating ? (
           <button
@@ -190,22 +217,19 @@ export const PickerMode: React.FC<PickerModeProps> = ({
           </button>
         ) : (
           <button
-            onClick={handleStop}
+            onClick={handleStopNow}
             disabled={isDecelerating}
-            className={`inline-flex items-center justify-center gap-3 px-10 py-4 rounded-2xl text-lg font-bold text-white shadow-xl transition-all duration-150 ${
-              isDecelerating
-                ? 'bg-slate-500 cursor-not-allowed'
-                : 'bg-rose-600 hover:bg-rose-700 active:scale-95 shadow-rose-600/30'
-            }`}
+            className="inline-flex items-center justify-center gap-3 px-10 py-4 rounded-2xl text-lg font-bold text-white shadow-xl transition-all duration-150 bg-gradient-to-r from-blue-600 to-indigo-600 active:scale-95 shadow-blue-600/30"
+            title="Đang tự động chọn tên (Hoặc bấm để dừng ngay lập tức)"
           >
-            <Square className="w-6 h-6 fill-current" />
-            <span>{isDecelerating ? 'ĐANG CHỌN...' : 'DỪNG LẠI'}</span>
+            <Zap className={`w-6 h-6 ${isDecelerating ? '' : 'animate-spin'}`} />
+            <span>{isDecelerating ? 'ĐANG CHỌN TÊN...' : 'ĐANG TÌM HỌC SINH...'}</span>
           </button>
         )}
       </div>
 
       <p className="mt-4 text-xs text-slate-500 dark:text-slate-400 text-center">
-        Nhấn <strong>BẮT ĐẦU</strong> để xáo trộn, sau đó nhấn <strong>DỪNG LẠI</strong> để hệ thống chọn học sinh ngẫu nhiên công bằng.
+        Chỉ cần bấm <strong>BẮT ĐẦU</strong>, hệ thống sẽ tự động xáo trộn và tìm tên ngẫu nhiên sau 2.5 giây mà thầy/cô không cần bấm dừng.
       </p>
     </div>
   );

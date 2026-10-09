@@ -70,8 +70,8 @@ export const Header: React.FC<HeaderProps> = ({
             <Sparkles className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-white uppercase leading-none">
-              GỌI TÊN NGẪU NHIÊN
+            <h1 className="text-sm sm:text-base md:text-lg font-black tracking-tight text-slate-900 dark:text-white uppercase leading-tight">
+              GỌI TÊN MAY MẮN – AI SẼ ĐƯỢC CHỌN?
             </h1>
             <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 mt-1 leading-none">
               Mỗi học sinh – Một cơ hội
