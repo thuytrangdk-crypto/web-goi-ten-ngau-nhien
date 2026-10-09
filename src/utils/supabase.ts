@@ -100,6 +100,12 @@ alter table classes enable row level security;
 alter table students enable row level security;
 alter table call_history enable row level security;
 
+-- Xóa policy cũ nếu đã tồn tại để tránh lỗi trùng lặp khi chạy lại
+drop policy if exists "Allow all on classes" on classes;
+drop policy if exists "Allow all on students" on students;
+drop policy if exists "Allow all on call_history" on call_history;
+
+-- Tạo mới policy cho phép đọc / ghi
 create policy "Allow all on classes" on classes for all using (true) with check (true);
 create policy "Allow all on students" on students for all using (true) with check (true);
 create policy "Allow all on call_history" on call_history for all using (true) with check (true);`;
